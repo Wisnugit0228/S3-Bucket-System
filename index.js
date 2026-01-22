@@ -20,7 +20,8 @@ app.use(cookieParser());
 
 app.use(router);
 
-app.listen(port, () => console.log(`server running on port ${port}`));
-// app.listen(port, "0.0.0.0", () => {
-//   console.log("Server running");
-// });
+//app.listen(port, () => console.log(`server running on port ${port}`));
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
+});

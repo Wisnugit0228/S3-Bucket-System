@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import {
   deleteFileController,
+  downloadFileController,
   uploadFileController,
 } from "../controllers/File.Controller.js";
 
@@ -15,5 +16,6 @@ router.get("/", (req, res) => {
 
 router.post("/uploads", upload.single("file"), uploadFileController);
 router.post("/delete", deleteFileController);
+router.get("/download", downloadFileController);
 
 export default router;
