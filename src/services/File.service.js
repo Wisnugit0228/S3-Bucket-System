@@ -6,13 +6,14 @@ class FileService {
     this.s3Delete = deleteFile;
     this.s3Download = downloadFile;
   }
-  async uploadFile(dir, file) {
-    const uploadFile = await this.s3Upload(dir, file);
+  async uploadFile(bucketName, directory, file) {
+    const uploadFile = await this.s3Upload(bucketName, directory, file);
     const { Location, Key, Bucket } = uploadFile;
+    const keyFile = `${bucketName}/${Key}`;
     const localUrl = Location;
-    const publicUrl = `${process.env.MS3_PUBLIC_ENDPOINT}/${Bucket}/${Key}`;
+    const publicUrl = `${process.env.S3_PUBLIC_ENDPOINT}/${Bucket}/${Key}`;
     return {
-      Key,
+      Key: keyFile,
       localUrl,
       publicUrl,
       Bucket,

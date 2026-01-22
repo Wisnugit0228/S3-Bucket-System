@@ -1,7 +1,7 @@
 import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 
-export const uploadFile = async (dir, file) => {
+export const uploadFile = async (bucketName, directory, file) => {
   const s3 = new AWS.S3({
     endpoint: process.env.S3_ENDPOINT,
     accessKeyId: process.env.S3_ACCESS_KEY_ID,
@@ -10,10 +10,10 @@ export const uploadFile = async (dir, file) => {
     signatureVersion: "v4",
   });
 
-  const key = `${dir}/${uuidv4()}-${file.originalname}`;
+  const key = `${directory}/${uuidv4()}-${file.originalname}`;
 
   const params = {
-    Bucket: process.env.S3_BUCKET_NAME,
+    Bucket: bucketName,
     Key: key,
     Body: file.buffer,
     ContentType: file.mimetype,
@@ -47,9 +47,14 @@ export const downloadFile = async (key) => {
     signatureVersion: "v4",
   });
 
+  // pisahkan bucket & key
+  const parts = key.split("/");
+  const bucketName = parts.shift();
+  const keyFile = parts.join("/");
+
   const params = {
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: key,
+    Bucket: bucketName,
+    Key: keyFile,
   };
 
   return s3.getObject(params).promise();

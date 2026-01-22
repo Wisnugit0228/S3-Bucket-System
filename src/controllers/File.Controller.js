@@ -2,12 +2,19 @@ import FileService from "../services/File.service.js";
 
 export const uploadFileController = async (req, res) => {
   try {
-    if (!req.body.dir || !req.file) {
-      throw new Error("dir and file is required");
+    if (!req.body.directory || !req.file) {
+      throw new Error("directory and file is required");
     }
-    const { dir } = req.body;
+    if (!req.body.bucketName) {
+      throw new Error("bucketName is required");
+    }
+    const { directory, bucketName } = req.body;
     const file = req.file;
-    const uploadFile = await FileService.uploadFile(dir, file);
+    const uploadFile = await FileService.uploadFile(
+      bucketName,
+      directory,
+      file,
+    );
     res.status(200).json({
       status: "success",
       data: uploadFile,
@@ -38,25 +45,6 @@ export const deleteFileController = async (req, res) => {
     });
   }
 };
-
-// export const downloadFileController = async (req, res) => {
-//   try {
-//     if (!req.body.key) {
-//       throw new Error("key is required");
-//     }
-//     const { key } = req.body;
-//     const downloadFile = await FileService.downloadFile(key);
-//     res.status(200).json({
-//       status: "success",
-//       data: downloadFile,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       status: "error",
-//       message: error.message,
-//     });
-//   }
-// };
 
 export const downloadFileController = async (req, res) => {
   try {
