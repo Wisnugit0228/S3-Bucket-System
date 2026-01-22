@@ -3,8 +3,11 @@ import multer from "multer";
 import {
   deleteFileController,
   downloadFileController,
+  listFilesController,
+  listFoldersController,
   uploadFileController,
 } from "../controllers/File.Controller.js";
+import { listObjectsByPrefix } from "../services/Bucket.service.js";
 
 const router = express.Router();
 
@@ -36,5 +39,8 @@ router.get("/", (req, res) => {
 router.post("/uploads", upload.single("file"), uploadFileController);
 router.post("/delete", deleteFileController);
 router.get("/download", downloadFileController);
+
+router.get("/folders", listFoldersController);
+router.get("/filefolder", listFilesController);
 
 export default router;
