@@ -1,5 +1,5 @@
 import AWS from "aws-sdk";
-import { v4 as uuidv4 } from "uuid";
+// import { v4 as uuidv4 } from "uuid";
 
 export const uploadFile = async (bucketName, directory, file) => {
   const s3 = new AWS.S3({
@@ -10,7 +10,7 @@ export const uploadFile = async (bucketName, directory, file) => {
     signatureVersion: "v4",
   });
 
-  const key = `${directory}/${uuidv4()}-${file.originalname}`;
+  const key = `${directory}/${file.originalname}`;
 
   const params = {
     Bucket: bucketName,
