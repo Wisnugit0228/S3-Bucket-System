@@ -1,4 +1,6 @@
 import AWS from "aws-sdk";
+import sharp from "sharp";
+import path from "path";
 // import { v4 as uuidv4 } from "uuid";
 
 export const uploadFile = async (bucketName, directory, file) => {
@@ -10,13 +12,26 @@ export const uploadFile = async (bucketName, directory, file) => {
     signatureVersion: "v4",
   });
 
-  const key = `${directory}/${file.originalname}`;
+  let buffer = file.buffer;
+  let contentType = file.mimetype;
+
+  let filename = file.originalname;
+
+  if (file.mimetype.startsWith("image/")) {
+    buffer = await sharp(file.buffer).webp({ quality: 20 }).toBuffer();
+
+    const nameWithoutExt = path.parse(file.originalname).name;
+    filename = `${nameWithoutExt}.webp`;
+    contentType = "image/webp";
+  }
+
+  const key = `${directory}/${filename}`;
 
   const params = {
     Bucket: bucketName,
     Key: key,
-    Body: file.buffer,
-    ContentType: file.mimetype,
+    Body: buffer,
+    ContentType: contentType,
   };
   return s3.upload(params).promise();
 };
