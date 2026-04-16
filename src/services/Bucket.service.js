@@ -59,7 +59,7 @@ export const uploadFile = async (bucketName, directory, file) => {
 
     // OPTION 2: original + unique (RECOMMENDED)
     const unique = Date.now();
-    filename = `${safeName}-${unique}.webp`;
+    filename = `${safeName}.webp`;
 
     contentType = "image/webp";
   }
