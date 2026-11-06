@@ -3,6 +3,7 @@ import multer from "multer";
 import {
   deleteFileController,
   downloadFileController,
+  getFileUrlController,
   uploadFileController,
 } from "../controllers/File.Controller.js";
 
@@ -29,6 +30,15 @@ router.get("/", (req, res) => {
           key: "string",
         },
       },
+      getFileUrl: {
+        url: "/get-file",
+        method: "GET",
+        query: {
+          key: "string",
+          bucketName: "string (optional)",
+          expiresIn: "number (optional, default 3600)",
+        },
+      },
     },
   });
 });
@@ -36,5 +46,6 @@ router.get("/", (req, res) => {
 router.post("/uploads", upload.single("file"), uploadFileController);
 router.post("/delete", deleteFileController);
 router.get("/download", downloadFileController);
+router.get("/get-file", getFileUrlController);
 
 export default router;

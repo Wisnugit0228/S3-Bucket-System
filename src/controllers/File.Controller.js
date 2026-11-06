@@ -29,17 +29,23 @@ export const uploadFileController = async (req, res) => {
 
 export const deleteFileController = async (req, res) => {
   try {
-    if (!req.body.key) {
-      throw new Error("key is required");
+    // Membaca key dari req.body ATAU req.query
+    const key = req.body?.key || req.query?.key;
+
+    if (!key) {
+      return res.status(400).json({
+        status: "error",
+        message: "key is required",
+      });
     }
-    const { key } = req.body;
+
     const deleteFile = await FileService.deleteFile(key);
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       data: deleteFile,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       status: "error",
       message: error.message,
     });
@@ -59,15 +65,54 @@ export const downloadFileController = async (req, res) => {
 
     const file = await FileService.downloadFile(key);
 
-    res.setHeader("Content-Type", file.ContentType);
+    // 1. Ekstrak nama file untuk Content-Disposition header
+    const fileName = key.split("/").pop();
+
+    // 2. Set Response Headers
+    if (file.ContentType) {
+      res.setHeader("Content-Type", file.ContentType);
+    }
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${key.split("/").pop()}"`,
+      `attachment; filename="${fileName}"`
     );
 
-    return res.send(file.Body); // buffer
+    // 3. Konversi AWS SDK v3 stream (file.Body) ke Buffer
+    const byteArray = await file.Body.transformToByteArray();
+    const buffer = Buffer.from(byteArray);
+
+    return res.send(buffer);
   } catch (error) {
-    console.error(error);
+    console.error("Download file error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
+export const getFileUrlController = async (req, res) => {
+  try {
+    const { key, bucketName, expiresIn } = req.query;
+
+    if (!key) {
+      return res.status(400).json({
+        status: "error",
+        message: "key is required",
+      });
+    }
+
+    const url = await FileService.getFileUrl(
+      key,
+      bucketName,
+      expiresIn ? parseInt(expiresIn, 10) : 3600,
+    );
+
+    return res.status(200).json({
+      status: "success",
+      data: { url },
+    });
+  } catch (error) {
     return res.status(500).json({
       status: "error",
       message: error.message,
