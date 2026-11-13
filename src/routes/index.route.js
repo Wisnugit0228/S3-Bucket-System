@@ -5,6 +5,7 @@ import {
   downloadFileController,
   getFileUrlController,
   uploadFileController,
+  viewFileController, // <-- 1. Import controller baru
 } from "../controllers/File.Controller.js";
 
 const router = express.Router();
@@ -39,6 +40,15 @@ router.get("/", (req, res) => {
           expiresIn: "number (optional, default 3600)",
         },
       },
+      viewFile: {
+        url: "/files/view",
+        method: "GET",
+        query: {
+          key: "string",
+          expires: "number",
+          sig: "string",
+        },
+      },
     },
   });
 });
@@ -47,5 +57,6 @@ router.post("/uploads", upload.single("file"), uploadFileController);
 router.post("/delete", deleteFileController);
 router.get("/download", downloadFileController);
 router.get("/get-file", getFileUrlController);
+router.get("/files/view", viewFileController); // <-- 2. Daftarkan route-nya di sini
 
 export default router;

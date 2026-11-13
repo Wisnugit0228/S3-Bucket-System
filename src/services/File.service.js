@@ -3,6 +3,8 @@ import {
   downloadFile,
   uploadFile,
   getFileUrl,
+  generateBackendSignedUrl,
+  verifyBackendSignature,
 } from "./Bucket.service.js";
 
 class FileService {
@@ -11,6 +13,8 @@ class FileService {
     this.s3Delete = deleteFile;
     this.s3Download = downloadFile;
     this.s3GetFileUrl = getFileUrl;
+    this.s3GenerateBackendSignedUrl = generateBackendSignedUrl;
+    this.s3VerifyBackendSignature = verifyBackendSignature;
   }
 
   async uploadFile(bucketName, directory, file) {
@@ -40,6 +44,20 @@ class FileService {
   async getFileUrl(key, bucketName = "", expiresIn = 3600) {
     const fileUrl = await this.s3GetFileUrl(key, bucketName, expiresIn);
     return fileUrl;
+  }
+
+  async getBackendFileUrl(key, bucketName = "", expiresIn = 3600, baseUrl = "") {
+    const backendUrl = await this.s3GenerateBackendSignedUrl(
+      key,
+      bucketName,
+      expiresIn,
+      baseUrl
+    );
+    return backendUrl;
+  }
+
+  verifyFileSignature(key, expires, signature) {
+    return this.s3VerifyBackendSignature(key, expires, signature);
   }
 }
 

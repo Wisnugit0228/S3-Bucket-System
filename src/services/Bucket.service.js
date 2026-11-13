@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import {
   S3Client,
   DeleteObjectCommand,
@@ -6,6 +7,8 @@ import {
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+const SIGN_SECRET = process.env.JWT_SECRET || process.env.S3_SECRET_ACCESS_KEY || "default-secret-key";
 
 // Lazy Singleton Client
 let s3Instance = null;
@@ -24,16 +27,15 @@ const getS3Client = () => {
         accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
         secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
       },
-      region: "auto",
+      region: "us-east-1",
       forcePathStyle: true,
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
   return s3Instance;
 };
 
-/**
- * Helper untuk mengekstrak bucketName dan cleanKey dari string input
- */
 export const extractBucketAndKey = (urlOrKey, defaultBucket = "") => {
   if (!urlOrKey) return { bucketName: defaultBucket, key: "" };
 
@@ -68,9 +70,6 @@ export const extractBucketAndKey = (urlOrKey, defaultBucket = "") => {
   };
 };
 
-/**
- * Cek apakah file/bucket benar-benar ada di S3/R2
- */
 export const fileExists = async (bucketName, key) => {
   try {
     await getS3Client().send(
@@ -78,14 +77,10 @@ export const fileExists = async (bucketName, key) => {
     );
     return true;
   } catch (error) {
-    // Jika bucket/key tidak ditemukan, AWS SDK melempar error status 404 / NotFound
     return false;
   }
 };
 
-/**
- * Menerima Key/Path dan mengembalikan Presigned URL hanya jika file/bucket valid
- */
 export const getFileUrl = async (key, bucketName = "", expiresIn = 3600) => {
   try {
     if (!key) return null;
@@ -95,20 +90,15 @@ export const getFileUrl = async (key, bucketName = "", expiresIn = 3600) => {
       bucketName
     );
 
-    if (!activeBucket || !cleanKey) {
-      return null;
-    }
+    if (!activeBucket || !cleanKey) return null;
 
-    // 1. VALIDASI: Cek langsung ke S3/R2 apakah bucket & file tersebut ada
     const exists = await fileExists(activeBucket, cleanKey);
     if (!exists) {
       console.warn(`[GetFileUrl Fail] Bucket atau Key tidak ditemukan: ${activeBucket}/${cleanKey}`);
-      return null; // Mengembalikan null jika bucketName/key salah
+      return null;
     }
 
-    // 2. Jika valid, buatkan URL
     const publicDomain = process.env.S3_PUBLIC_DOMAIN;
-
     if (publicDomain) {
       return `${publicDomain.replace(/\/$/, "")}/${activeBucket}/${cleanKey}`;
     }
@@ -118,17 +108,13 @@ export const getFileUrl = async (key, bucketName = "", expiresIn = 3600) => {
       Key: cleanKey,
     });
 
-    const fileUrl = await getSignedUrl(getS3Client(), command, { expiresIn });
-    return fileUrl;
+    return await getSignedUrl(getS3Client(), command, { expiresIn });
   } catch (error) {
     console.error("Error generating Presigned URL:", error);
     return null;
   }
 };
 
-/**
- * Upload file ke S3/R2
- */
 export const uploadFile = async (bucketName, directory, file) => {
   const key = `${directory}/${file.originalname}`;
 
@@ -151,9 +137,6 @@ export const uploadFile = async (bucketName, directory, file) => {
   };
 };
 
-/**
- * Hapus file dari S3/R2
- */
 export const deleteFile = async (keyInput) => {
   const { bucketName, key } = extractBucketAndKey(keyInput);
 
@@ -165,9 +148,6 @@ export const deleteFile = async (keyInput) => {
   return getS3Client().send(command);
 };
 
-/**
- * Download file
- */
 export const downloadFile = async (keyInput) => {
   const { bucketName, key } = extractBucketAndKey(keyInput);
 
@@ -177,4 +157,43 @@ export const downloadFile = async (keyInput) => {
   });
 
   return getS3Client().send(command);
+};
+
+export const generateBackendSignedUrl = async (key, bucketName = "", expiresIn = 3600, baseUrl = "") => {
+  const { bucketName: activeBucket, key: cleanKey } = extractBucketAndKey(key, bucketName);
+
+  if (!activeBucket || !cleanKey) return null;
+
+  const exists = await fileExists(activeBucket, cleanKey);
+  if (!exists) return null;
+
+  const fullKey = `${activeBucket}/${cleanKey}`;
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+
+  const payload = `${fullKey}:${expiresAt}`;
+  const signature = crypto
+    .createHmac("sha256", SIGN_SECRET)
+    .update(payload)
+    .digest("hex");
+
+  const hostUrl = (process.env.APP_URL || baseUrl).replace(/\/$/, "");
+  // Sesuaikan path '/files/view' atau '/api/files/view' sesuai prefix route di app.js Anda
+  return `${hostUrl}/files/view?key=${encodeURIComponent(fullKey)}&expires=${expiresAt}&sig=${signature}`;
+};
+
+export const verifyBackendSignature = (fullKey, expires, signature) => {
+  if (!fullKey || !expires || !signature) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (now > parseInt(expires, 10)) return false;
+
+  const expectedSig = crypto
+    .createHmac("sha256", SIGN_SECRET)
+    .update(`${fullKey}:${expires}`)
+    .digest("hex");
+
+  // Pastikan panjang buffer sama sebelum timingSafeEqual agar tidak throw error jika signature dimanipulasi
+  if (signature.length !== expectedSig.length) return false;
+
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig));
 };

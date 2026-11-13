@@ -96,26 +96,57 @@ export const getFileUrlController = async (req, res) => {
     const { key, bucketName, expiresIn } = req.query;
 
     if (!key) {
-      return res.status(400).json({
-        status: "error",
-        message: "key is required",
-      });
+      return res.status(400).json({ status: "error", message: "key is required" });
     }
 
-    const url = await FileService.getFileUrl(
+    // Otomatis deteksi http://localhost:3001 jika APP_URL di .env belum diset
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const url = await FileService.getBackendFileUrl(
       key,
       bucketName,
       expiresIn ? parseInt(expiresIn, 10) : 3600,
+      baseUrl
     );
+
+    if (!url) {
+      return res.status(404).json({ status: "error", message: "File tidak ditemukan di RustFS" });
+    }
 
     return res.status(200).json({
       status: "success",
       data: { url },
     });
   } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: error.message,
-    });
+    return res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+export const viewFileController = async (req, res) => {
+  try {
+    const { key, expires, sig } = req.query;
+
+    // 1. Cek validitas token & masa berlaku URL
+    if (!FileService.verifyFileSignature(key, expires, sig)) {
+      return res.status(403).json({
+        status: "error",
+        message: "URL tidak valid atau sudah kadaluarsa",
+      });
+    }
+
+    // 2. Ambil stream dari RustFS
+    const file = await FileService.downloadFile(key);
+    const fileName = key.split("/").pop();
+
+    if (file.ContentType) res.setHeader("Content-Type", file.ContentType);
+    if (file.ContentLength) res.setHeader("Content-Length", file.ContentLength);
+
+    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+
+    // 3. Pipe langsung ke response browser
+    file.Body.pipe(res);
+  } catch (error) {
+    console.error("Stream RustFS error:", error);
+    return res.status(500).json({ status: "error", message: error.message });
   }
 };
