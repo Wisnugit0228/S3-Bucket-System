@@ -4,6 +4,7 @@ import {
   deleteFileController,
   downloadFileController,
   getFileUrlController,
+  mergePdfPortfolioController,
   uploadFileController,
   viewFileController, // <-- 1. Import controller baru
 } from "../controllers/File.Controller.js";
@@ -57,6 +58,7 @@ router.post("/uploads", upload.single("file"), uploadFileController);
 router.post("/delete", deleteFileController);
 router.get("/download", downloadFileController);
 router.get("/get-file", getFileUrlController);
-router.get("/files/view", viewFileController); // <-- 2. Daftarkan route-nya di sini
+router.get("/files/view", viewFileController);
+router.post("/merge-portfolio", mergePdfPortfolioController);
 
 export default router;

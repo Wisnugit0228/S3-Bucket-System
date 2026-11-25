@@ -150,3 +150,89 @@ export const viewFileController = async (req, res) => {
     return res.status(500).json({ status: "error", message: error.message });
   }
 };
+
+export const mergePdfPortfolioController = async (req, res) => {
+  try {
+    const {
+      keys,
+      title,
+      subtitle,
+      subAddress,
+      outputFileName,
+      saveToS3 = false,
+      bucketName,
+      directory,
+      patient,
+      // Fallback jika dikirim langsung di root payload body
+      noRm,
+      no_rm,
+      nama,
+      tanggalLahir,
+      tanggal_lahir,
+      umur,
+      jenisKelamin,
+      jenis_kelamin,
+      alamat,
+    } = req.body;
+
+    if (!Array.isArray(keys) || keys.length < 2) {
+      return res.status(400).json({
+        status: "error",
+        message: "Parameter 'keys' harus berupa array berisi minimal 2 key file PDF.",
+      });
+    }
+
+    const patientData = patient || {
+      noRm: noRm || no_rm,
+      nama,
+      tanggalLahir: tanggalLahir || tanggal_lahir,
+      umur,
+      jenisKelamin: jenisKelamin || jenis_kelamin,
+      alamat,
+    };
+
+    const result = await FileService.createPdfPortfolioFromKeys(keys, {
+      title,
+      subtitle,
+      subAddress,
+      outputFileName,
+      saveToS3,
+      bucketName,
+      directory,
+      patient: patientData,
+    });
+
+    if (result.saved) {
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const viewUrl = await FileService.getBackendFileUrl(
+        result.Key,
+        result.Bucket,
+        3600,
+        baseUrl
+      );
+
+      return res.status(200).json({
+        status: "success",
+        data: {
+          ...result,
+          viewUrl,
+        },
+      });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
+    );
+    res.setHeader("Content-Length", result.buffer.length);
+
+    return res.send(result.buffer);
+  } catch (error) {
+    console.error("Merge PDF Portfolio error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
